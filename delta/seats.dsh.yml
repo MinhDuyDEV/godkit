@@ -8,7 +8,7 @@ seats:
   hq: [claude]
   supervisor: [claude]
   lead: [claude]
-  peer: [claude, pi, dsh]
+  peer: [claude, dsh]
   lens: [claude, pi, dsh]
 
 # true: each provider lists only the models room/models.json assigns to it

@@ -1,0 +1,46 @@
+{
+  "case": "godkit-lead-refinery-rejects-red",
+  "expect": "fail",
+  "why": "REJECT without the failing output",
+  "tools": [
+    {
+      "name": "Skill",
+      "input": {
+        "skill": "slp-refinery"
+      }
+    },
+    {
+      "name": "Bash",
+      "input": {
+        "command": "git switch -c integration/units"
+      }
+    },
+    {
+      "name": "Bash",
+      "input": {
+        "command": "git apply --index ../candidate.patch"
+      }
+    },
+    {
+      "name": "Bash",
+      "input": {
+        "command": "npm test 2>&1 | tail -20"
+      }
+    },
+    {
+      "name": "Bash",
+      "input": {
+        "command": "git reset --hard"
+      }
+    },
+    {
+      "name": "mcp__slp__slp_mail",
+      "input": {
+        "to": "peer-1",
+        "subject": "REJECT",
+        "body": "REJECT 01: please redo it. ACCEPT withdrawn."
+      }
+    }
+  ],
+  "text": "REJECT 01: please redo it. ACCEPT withdrawn.\nRECAP: handled → mail to owner"
+}

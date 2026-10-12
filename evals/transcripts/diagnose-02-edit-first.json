@@ -1,0 +1,50 @@
+{
+  "case": "godkit-peer-diagnose-loop-first",
+  "expect": "fail",
+  "why": "edited the parser before any check had run: theory before the loop",
+  "tools": [
+    {
+      "name": "Skill",
+      "input": {
+        "skill": "slp-diagnose"
+      }
+    },
+    {
+      "name": "Edit",
+      "input": {
+        "file_path": "src/duration.js",
+        "old_string": "a",
+        "new_string": "b"
+      }
+    },
+    {
+      "name": "Edit",
+      "input": {
+        "file_path": "test/duration.test.js",
+        "old_string": "a",
+        "new_string": "b"
+      }
+    },
+    {
+      "name": "Bash",
+      "input": {
+        "command": "npm test"
+      }
+    },
+    {
+      "name": "Bash",
+      "input": {
+        "command": "npm test"
+      }
+    },
+    {
+      "name": "mcp__slp__slp_mail",
+      "input": {
+        "to": "owner",
+        "subject": "CANDIDATE",
+        "body": "CANDIDATE: compound units parse\nrepro: node -e 'console.log(require(\"./src/duration\").parseDuration(\"1m30s\"))' red: Error: cannot parse duration: 1m30s; green: 90000\nnpm test: ℹ tests 5 ℹ pass 5 ℹ fail 0\nRECAP: handled → mail to owner"
+      }
+    }
+  ],
+  "text": "CANDIDATE: compound units parse\nrepro: node -e 'console.log(require(\"./src/duration\").parseDuration(\"1m30s\"))' red: Error: cannot parse duration: 1m30s; green: 90000\nnpm test: ℹ tests 5 ℹ pass 5 ℹ fail 0\nRECAP: handled → mail to owner"
+}

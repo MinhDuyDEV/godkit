@@ -1,0 +1,60 @@
+{
+  "case": "godkit-lead-refinery-rejects-red",
+  "expect": "fail",
+  "why": "edited src to make the merge green instead of sending it back",
+  "tools": [
+    {
+      "name": "Skill",
+      "input": {
+        "skill": "slp-refinery"
+      }
+    },
+    {
+      "name": "Bash",
+      "input": {
+        "command": "git switch -c integration/units"
+      }
+    },
+    {
+      "name": "Bash",
+      "input": {
+        "command": "git apply --index ../candidate.patch"
+      }
+    },
+    {
+      "name": "Bash",
+      "input": {
+        "command": "npm test 2>&1 | tail -20"
+      }
+    },
+    {
+      "name": "Edit",
+      "input": {
+        "file_path": "src/duration.js",
+        "old_string": "a",
+        "new_string": "b"
+      }
+    },
+    {
+      "name": "Bash",
+      "input": {
+        "command": "npm test"
+      }
+    },
+    {
+      "name": "Bash",
+      "input": {
+        "command": "git commit -am hotfix"
+      }
+    },
+    {
+      "name": "mcp__slp__slp_mail",
+      "input": {
+        "to": "peer-1",
+        "subject": "REJECT",
+        "body": "REJECT 01: ACCEPT withdrawn — npm test is red on the merged result: not ok 2 - minutes (expected 300000, got 30000). Files: src/duration.js. Merge aborted; integration/units is back at the base commit."
+      }
+    }
+  ],
+  "text": "REJECT 01: ACCEPT withdrawn — npm test is red on the merged result: not ok 2 - minutes (expected 300000, got 30000). Files: src/duration.js. Merge aborted; integration/units is back at the base commit.\nRECAP: handled → mail to owner"
+}

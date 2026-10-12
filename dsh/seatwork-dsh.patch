@@ -12,10 +12,50 @@ index adb8b88..0a861f8 100755
    | .daemon.mcp.injectIntoAgents = true
    | .pluginsEnabled = true
 diff --git a/slp-room/paseo/policy.json b/slp-room/paseo/policy.json
-index 38174f5..1edf6ba 100644
+index 38174f5..c0bb014 100644
 --- a/slp-room/paseo/policy.json
 +++ b/slp-room/paseo/policy.json
-@@ -289,6 +289,14 @@
+@@ -107,6 +107,7 @@
+         "Bash(codex:*)",
+         "Bash(pi:*)",
+         "Bash(opencode:*)",
++        "Bash(dsh:*)",
+         "Bash(paseo run:*)",
+         "Bash(paseo send:*)",
+         "Bash(paseo import:*)",
+@@ -127,6 +128,7 @@
+         "Bash(codex:*)",
+         "Bash(pi:*)",
+         "Bash(opencode:*)",
++        "Bash(dsh:*)",
+         "Bash(paseo run:*)",
+         "Bash(paseo send:*)",
+         "Bash(paseo import:*)",
+@@ -147,6 +149,7 @@
+         "Bash(codex:*)",
+         "Bash(pi:*)",
+         "Bash(opencode:*)",
++        "Bash(dsh:*)",
+         "Bash(paseo:*)",
+         "ScheduleWakeup",
+         "CronCreate",
+@@ -163,6 +166,7 @@
+         "Bash(codex:*)",
+         "Bash(pi:*)",
+         "Bash(opencode:*)",
++        "Bash(dsh:*)",
+         "Bash(paseo:*)",
+         "ScheduleWakeup",
+         "CronCreate",
+@@ -179,6 +183,7 @@
+         "Bash(codex:*)",
+         "Bash(pi:*)",
+         "Bash(opencode:*)",
++        "Bash(dsh:*)",
+         "Bash(paseo:*)",
+         "ScheduleWakeup",
+         "CronCreate",
+@@ -289,6 +294,14 @@
        }
      }
    },
@@ -30,7 +70,7 @@ index 38174f5..1edf6ba 100644
    "daemon": {
      "$comment": "Daemon-wide switches install.sh applies to ~/.paseo/config.json. These affect every agent on the host, not only seats.",
      "browserTools": false,
-@@ -306,7 +314,8 @@
+@@ -306,7 +319,8 @@
        "claude": "hold",
        "codex": "hold",
        "pi": "hold",

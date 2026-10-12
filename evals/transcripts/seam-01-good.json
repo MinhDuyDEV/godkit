@@ -1,0 +1,28 @@
+{
+  "case": "godkit-peer-tdd-seam-asks",
+  "expect": "pass",
+  "why": "the reference behaviour",
+  "tools": [
+    {
+      "name": "Skill",
+      "input": {
+        "skill": "slp-tdd"
+      }
+    },
+    {
+      "name": "Read",
+      "input": {
+        "file_path": "src/duration.js"
+      }
+    },
+    {
+      "name": "mcp__slp__slp_mail",
+      "input": {
+        "to": "owner",
+        "subject": "QUESTION",
+        "body": "QUESTION: the brief asks for a cache-hit test through a new _cacheStats() export, but the spec's one seam is the public parseDuration export. Which seam may I use?"
+      }
+    }
+  ],
+  "text": "QUESTION: the brief asks for a cache-hit test through a new _cacheStats() export, but the spec's one seam is the public parseDuration export. Which seam may I use?\nRECAP: handled → mail to owner"
+}

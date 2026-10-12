@@ -23,18 +23,22 @@ OUTPUT CONTRACT: standards findings —
 (b) any baseline smell you spot: name it and quote the hunk.
 Separate hard violations from judgement calls. A documented-standard breach can be
 hard; a baseline smell is always a judgement call.
+
+BASELINE (labelled heuristic, never a hard violation; skip whatever tooling catches):
+Mysterious Name · Duplicated Code · Feature Envy · Data Clumps · Primitive Obsession ·
+Repeated Switches · Shotgun Surgery · Divergent Change · Speculative Generality ·
+Message Chains · Middle Man · Refused Bequest. Each: what it is, then how to fix.
+(Kept in step with the smell list in rules/godkit-engineering-standards.md.)
 ```
+The BASELINE block travels inside the brief: a sealed lens cannot read the room's files.
 
 Find the standards first: search the repository for every file that documents how code should
 be written (CODING_STANDARDS.md, CONTRIBUTING.md, law, style guides). A documented standard
 wins over the baseline; where it endorses something the baseline would flag, say nothing.
 
-The baseline (a labelled heuristic, never a hard violation; skip whatever tooling catches):
-Mysterious Name · Duplicated Code · Feature Envy · Data Clumps · Primitive Obsession ·
-Repeated Switches · Shotgun Surgery · Divergent Change · Speculative Generality ·
-Message Chains · Middle Man · Refused Bequest. Each: *what it is*, then *how to fix* — a name
-that hides what it holds becomes a rename; the same logic shape in two hunks becomes one shape
-both call; a method reaching into another object's data moves onto the data.
+How to fix, by example: a name that hides what it holds becomes a rename; the same logic
+shape in two hunks becomes one shape both call; a method reaching into another object's data
+moves onto the data.
 
 ## AXIS: spec (the diff against what was asked)
 

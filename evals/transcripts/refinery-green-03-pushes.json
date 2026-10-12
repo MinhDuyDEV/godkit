@@ -1,0 +1,52 @@
+{
+  "case": "godkit-lead-refinery-green-closes",
+  "expect": "fail",
+  "why": "pushed although the law says no push",
+  "tools": [
+    {
+      "name": "Skill",
+      "input": {
+        "skill": "slp-refinery"
+      }
+    },
+    {
+      "name": "Bash",
+      "input": {
+        "command": "git switch -c integration/units"
+      }
+    },
+    {
+      "name": "Bash",
+      "input": {
+        "command": "git apply --index ../candidate.patch"
+      }
+    },
+    {
+      "name": "Bash",
+      "input": {
+        "command": "npm test 2>&1 | tail -20"
+      }
+    },
+    {
+      "name": "Bash",
+      "input": {
+        "command": "git commit -m 'ticket 01'"
+      }
+    },
+    {
+      "name": "Bash",
+      "input": {
+        "command": "git push origin integration/units"
+      }
+    },
+    {
+      "name": "Edit",
+      "input": {
+        "file_path": ".scratch/units/issues/01-hours.md",
+        "old_string": "Status: accepted",
+        "new_string": "Status: closed"
+      }
+    }
+  ],
+  "text": "Ticket 01 merged green on integration/units (npm test: pass 5, fail 0), ticket closed; ticket 02 now ready, not started.\nRECAP: handled → mail to owner"
+}

@@ -1,6 +1,6 @@
 # QUY TRÌNH PASEO — bộ GODKIT (seatwork × mattpocock/skills, chạy trên Claude + Pi)
 
-> Bản dịch của thiết kế 8 chẵng trong `../QUY-TRINH.md` (bản piggery) sang một room
+> Bản dịch của thiết kế 8 chẵng trong `~/Downloads/god/QUY-TRINH.md` (bản piggery, ngoài repo này) sang một room
 > **supervisor → lead → peer(+lens)** sống ngay trong Paseo. Chassis = plugin `slp-seat`
 > của seatwork; phương pháp = skills của Matt Pocock chạy trong session của bạn và các
 > port (nét cốt lõi) chạy trong seat.
@@ -25,7 +25,7 @@
 | **Supervisor** | `claude-supervisor` | Pin intent, chia workstream, heartbeat, `.slp/status.md` | Sửa code, accept kết quả |
 | **Lead** | `claude-lead` | Kế hoạch workstream, briefs, **frontier**, **refinery (merge queue)**, chủ tịch review hai trục, đóng ticket | Đẻ worker vô hạn (policy cấm) |
 | **Peer** | `claude-peer` / `pi-peer` | 1 ticket, 1 worktree, 1 outcome; TDD tại seam; challenge bằng evidence | Spawn ai; nhá nhem scope |
-| **Lens** | `pi-lens` / `claude-lens` | 1 câu hỏi / 1 trục review, chỉ đọc, không biết nhau | Edit/Write (policy tắt) |
+| **Lens** | `pi-lens` / `claude-lens` | 1 câu hỏi / 1 trục review, chỉ đọc, không biết nhau | Edit/Write (policy tắt cho claude-lens; pi-lens chỉ bị chặn bằng prompt) |
 
 ## 2. Tám chẵng
 
@@ -43,9 +43,9 @@ SESSION CỦA BẠN (HITL)                                    ROOM (AFK trên Pa
 
 | Chẵng | Vai | Skill của godkit | mp-skills gốc | Cổng |
 |---|---|---|---|---|
-| 5 build — nạp | Lead | `slp-ticket-frontier` | `to-spec`+`to-tickets` artifacts | graph tường minh, không ticket open sau ACCEPT |
+| 5 build — nạp | Lead | `slp-ticket-frontier` | `to-spec`+`to-tickets` artifacts | graph tường minh; ticket đóng **khi merge xanh**, không phải khi ACCEPT |
 | 5 build — làm | Peer | `slp-tdd` | `tdd`, `implement` | red trước green tại seam đã chốt |
-| 5 build — merge | Lead | `slp-refinery` | merger của `/implement-spec` | check xanh sau MỖI merge; đỏ → undo + REJECT |
+| 5 build — merge | Lead | `slp-refinery` | merger của `/implement-spec` | `merge --no-commit` → check → commit khi xanh; đỏ → abort + REJECT (ACCEPT bị rút) |
 | 5 build — bug | Peer | `slp-diagnose` | `diagnosing-bugs` ph1–2 | một lệnh red-capable tồn tại trước mọi giả thuyết |
 | 6 review | Lens pair | `slp-two-axis-review` | `/code-review` | 2 báo cáo không merge/không rank; chốt sau 1 vòng fix |
 | 7 ship | Bạn | — | `/pr` | Merge Danger + Evidence |
@@ -70,27 +70,25 @@ cho session của bạn BÊN NGOÀI room — hai hệ không cùng chạy trên 
 
 | Vấn đề | seatwork nguyên bản | godkit |
 |---|---|---|
-| Merge song song | Lead hội nhập (sequential qua accept) | `slp-refinery`: queue + check từng merge + undo đỏ |
+| Merge song song | Lead hội nhập (sequential qua accept) | `slp-refinery`: queue + check trước khi commit từng merge; đỏ không bao giờ được commit |
 | Review mở rộng | lens theo angle, thường 1 | hai trục cố định + hai model family (`lens.pair` = pi + claude) |
 | Nạp pipeline mp-skills | instruction tự do | `slp-ticket-frontier`: spec+ticket → briefs trường-đối-trường |
-| Ticket lifecycle | không có tracker chuẩn | ticket đóng/nhãn superseded ngay khi ACCEPT (luật trong law) |
-| Chuẩn kỹ thuật | role prompt + law ngắn | law trỏ vào `room/rules/godkit-engineering-standards.md` (mọi harness) |
+| Ticket lifecycle | không có tracker chuẩn | `in progress → accepted → closed`: đóng **chỉ sau merge xanh** trên integration branch; superseded có nhãn (luật trong law) |
+| Chuẩn kỹ thuật | role prompt + law ngắn | law + harness sheet trỏ vào `room/rules/godkit-engineering-standards.md` bằng **đường dẫn tuyệt đối đã render lúc cài** (seat không được cho `ROOM_DIR`). Chỉ project có law viết **sau** khi cài mới mang dòng godkit; law cũ cần thêm tay (`delta/law/`) |
 
 ## 5. Cài đặt
 
 ```bash
-cd ~/workspace/my-paseo/seatwork        # clone seatwork (≥ commit Oct 2026)
-git clone https://github.com/sting9k/seatwork.git   # nếu chưa có
+git clone https://github.com/sting9k/seatwork.git ~/workspace/my-paseo/seatwork   # nếu chưa có
 cd ~/workspace/my-paseo/godkit
 bash install.sh --claude-model <id-claude> --pi-model <id-pi>
 #   --pi-model nên là model KHÔNG phải Anthropic để cross-family có nghĩa thật
 #   mặc định: watcher = shadow; mở lên khi shadow bắt thật lỗi (retro quyết)
 ```
 
-Kiểm chứng installer đã làm (4 kịch bản, đầu ra của `install.sh`):
-chạy sạch → replace+backup; chạy 2 = idempotent 18 ok; user sửa tay → **không đụng**, cảnh
-báo; `--force` → replace có backup. Lỗi placeholder sót lại / JSON hỏng → die trước khi
-chạm seatwork installer.
+Installer chạy 5 pha (kiểm tra → staging chỉ đọc → ghi có journal/rollback → side-effect → verify),
+quyền sở hữu file theo manifest sha256 — chi tiết ở README. Model id hỏng, patch dsh dở, clone
+lệch → die **trước khi ghi**; lỗi giữa chừng → rollback.
 
 ## 6. Điều chưa giải (trung thực)
 
@@ -100,7 +98,7 @@ chạm seatwork installer.
 1b. **dsh**: plugin `geoqiao/deepseek-harness` đưa dsh vào Paseo như **provider cá nhân**
    (`dsh --profile acp`) — tier 1, tự cài. Tier 2 **đã làm**: `install.sh --dsh-room` vá
    seatwork để `dsh-peer`/`dsh-lens` thành seat room thật — pair review trở thành
-   **Claude lens ↔ DeepSeek lens** thật sự. Trạng thái: typecheck + 90/90 test plugin pass,
+   **Claude lens ↔ DeepSeek lens** thật sự. Trạng thái: typecheck + test plugin pass (90 = 87 seatwork + 3 dsh; installer chỉ chạy `runtime-dsh.test.ts`, vì `onboard.test` cần `models.json` nguyên bản),
    installer 6 kịch bản 0 FAIL; **chưa chạy runtime thật** (cần daemon + dsh ≥ 0.2) — chi
    tiết, giới hạn và đường regenerate đọc ở **[DSH-PASEO.md](DSH-PASEO.md)**.
 2. **Tracker GitHub trong room**: worker cần `gh` login trong runtime của nó; kit mặc định

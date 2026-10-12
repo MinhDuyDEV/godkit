@@ -12,13 +12,15 @@ reports destroys it. A lens reviews; you decide.
 ## When
 
 - The integration branch is stable: `slp-refinery` queue empty, integrated check green,
-  every ticket done or explicitly dropped.
+  every ticket closed (merged green) or explicitly dropped.
 - Not on an ordinary slice: the candidate review already ran there (`slp-accept-candidate`,
   cross-family reviewer). This is the workstream-wide gate.
 
 ## Size and briefs
 
-Two lens seats (`slp-lens` gives the procedure: `size → brief → sealed → collect → settle`).
+Two lens seats (`slp-lens` gives the procedure `size → brief → sealed → collect`; stop before
+its `settle` step: settling merges the lenses' conclusions, and here the two reports stay
+separate).
 Same neutral brief, different `ANGLE` and `OUTPUT CONTRACT` (both shapes in
 `references/two-axis-formats.md`):
 

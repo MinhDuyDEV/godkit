@@ -48,9 +48,10 @@ khi vá. **GODKIT đã vá** — xem §4. Trước vá: dsh chỉ là provider c
 | `tools/choices.py` | `HARNESSES` + `"dsh"`; `CATALOG_PROVIDER["dsh"] = "deepseek-harness"` (catalog từ provider runtime-discovery) |
 | `tools/gen-snippet.py` | LABEL/ISOLATION dsh; provider entry dsh = **`extends: "acp"` + `command: ["dsh","--profile","acp"]` + env `DSH_HOME` = runtime của seat** + `options.supportsMcpServers:false` khi policy tắt |
 | `install.sh` | jq regex nhận diện provider của room thêm `dsh` |
+| `paseo/policy.json` (claude deny) | `Bash(dsh:*)` ở cả 5 role — seat Claude không mở được dsh lồng. **pi không có deny tương đương**: seat pi chỉ bị chặn bằng prompt |
 
   **Đã kiểm chứng tĩnh** (trên máy này): `git apply --check` sạch trên clone pristine;
-  `npm run typecheck` sạch; **`npm test` = 90/90 pass** (89 test seatwork + 3 test dsh);
+  `npm run typecheck` sạch; **`npm test` = 90/90 pass** (87 test seatwork + 3 test dsh; sau khi kit đặt `models.json` của nó thì `onboard.test` đỏ có chủ đích — installer chỉ chạy `runtime-dsh.test.ts` + typecheck);
   godkit installer: 6 kịch bản (default fresh/idempotent/user-edit/drifted-clone die;
   dsh-room fresh/idempotent) đều 0 FAIL. **Chưa kiểm chứng runtime thật** (cần daemon
   Paseo chạy + dsh ≥ 0.2 thật): hành vi resume/abort qua ACP, và seat dsh có nhận đúng

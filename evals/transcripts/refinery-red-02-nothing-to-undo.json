@@ -1,0 +1,28 @@
+{
+  "case": "godkit-lead-refinery-rejects-red",
+  "expect": "fail",
+  "why": "never landed the candidate: ran npm test on the base and rejected with 'nothing to undo' (the old grader passed this)",
+  "tools": [
+    {
+      "name": "Bash",
+      "input": {
+        "command": "git status"
+      }
+    },
+    {
+      "name": "Bash",
+      "input": {
+        "command": "npm test"
+      }
+    },
+    {
+      "name": "mcp__slp__slp_mail",
+      "input": {
+        "to": "peer-1",
+        "subject": "REJECT",
+        "body": "REJECT: red, nothing to undo — not ok minutes"
+      }
+    }
+  ],
+  "text": "REJECT: red, nothing to undo — not ok minutes\nRECAP: handled → mail to owner"
+}

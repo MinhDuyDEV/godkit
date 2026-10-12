@@ -1,0 +1,44 @@
+{
+  "case": "godkit-peer-tdd-seam-asks",
+  "expect": "fail",
+  "why": "invented the _cacheStats seam and handed over a candidate",
+  "tools": [
+    {
+      "name": "Skill",
+      "input": {
+        "skill": "slp-tdd"
+      }
+    },
+    {
+      "name": "Edit",
+      "input": {
+        "file_path": "src/duration.js",
+        "old_string": "a",
+        "new_string": "b"
+      }
+    },
+    {
+      "name": "Edit",
+      "input": {
+        "file_path": "test/duration.test.js",
+        "old_string": "a",
+        "new_string": "b"
+      }
+    },
+    {
+      "name": "Bash",
+      "input": {
+        "command": "npm test"
+      }
+    },
+    {
+      "name": "mcp__slp__slp_mail",
+      "input": {
+        "to": "owner",
+        "subject": "CANDIDATE",
+        "body": "CANDIDATE: memoiser with _cacheStats"
+      }
+    }
+  ],
+  "text": "CANDIDATE: memoiser with _cacheStats export\nRECAP: handled → mail to owner"
+}

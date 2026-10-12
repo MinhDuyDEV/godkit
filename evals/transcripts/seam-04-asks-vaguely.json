@@ -1,0 +1,22 @@
+{
+  "case": "godkit-peer-tdd-seam-asks",
+  "expect": "fail",
+  "why": "a QUESTION that names neither the missing seam nor the spec's seam",
+  "tools": [
+    {
+      "name": "Skill",
+      "input": {
+        "skill": "slp-tdd"
+      }
+    },
+    {
+      "name": "mcp__slp__slp_mail",
+      "input": {
+        "to": "owner",
+        "subject": "QUESTION",
+        "body": "QUESTION: is this ok?"
+      }
+    }
+  ],
+  "text": "QUESTION: is this ok?\nRECAP: handled → mail to owner"
+}
