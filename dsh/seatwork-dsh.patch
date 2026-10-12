@@ -1,0 +1,340 @@
+diff --git a/slp-room/install.sh b/slp-room/install.sh
+index adb8b88..0a861f8 100755
+--- a/slp-room/install.sh
++++ b/slp-room/install.sh
+@@ -104,7 +104,7 @@ jq --slurpfile snip "$HERE/paseo/config.snippet.json" --slurpfile pol "$HERE/pas
+   | .daemon.agentProfiles = (((.daemon.agentProfiles // []) | map(select(((.id // "") | startswith("agent_profile_slp_") | not) and ((.id as $i | $ownedIds | index($i)) == null)))) + $new)
+   # every room-owned provider (<harness>-<role>) is dropped, then the enabled ones written back,
+   # so a seat removed from seats.yml disappears from Paseo
+-  | .agents.providers = (((.agents.providers // {}) | with_entries(select(.key | test("^(claude|codex|pi|opencode)-(hq|supervisor|lead|peer|lens)$") | not))) + $snip[0].agents.providers)
++  | .agents.providers = (((.agents.providers // {}) | with_entries(select(.key | test("^(claude|codex|pi|opencode|dsh)-(hq|supervisor|lead|peer|lens)$") | not))) + $snip[0].agents.providers)
+   | .daemon.mcp.enabled = true
+   | .daemon.mcp.injectIntoAgents = true
+   | .pluginsEnabled = true
+diff --git a/slp-room/paseo/policy.json b/slp-room/paseo/policy.json
+index 38174f5..1edf6ba 100644
+--- a/slp-room/paseo/policy.json
++++ b/slp-room/paseo/policy.json
+@@ -289,6 +289,14 @@
+       }
+     }
+   },
++  "dsh": {
++    "$comment": "GODKIT/DSH: the runtime a dsh seat gets. A dsh seat runs `dsh --profile acp` with DSH_HOME at its own runtime (a provider entry gen-snippet writes); it shares the sign-in and the model layer state by symlink, keeps its sessions and storages to itself, and starts with no cordis patch, so none of your own plugin layers (or their MCP servers) load in it. The room's slp MCP and Paseo's agent tools arrive as MCP servers injected into the ACP session; set mcpServers false only if dsh's ACP refuses non-empty mcpServers (then the seat has no room tools at all).",
++    "runtime": {
++      "shareFiles": [".credentials.yaml", ".anonymous-user-id"],
++      "shareDirs": ["llm-deepseek"],
++      "mcpServers": true
++    }
++  },
+   "daemon": {
+     "$comment": "Daemon-wide switches install.sh applies to ~/.paseo/config.json. These affect every agent on the host, not only seats.",
+     "browserTools": false,
+@@ -306,7 +314,8 @@
+       "claude": "hold",
+       "codex": "hold",
+       "pi": "hold",
+-      "opencode": "hold"
++      "opencode": "hold",
++      "dsh": "hold"
+     },
+     "$comment_midTurn": "Mail to a RUNNING seat. 'steer' hands it to Paseo's steer; observed on 2026-10-07: Claude cancels the running tool ('[Request interrupted by user for tool use]') and Pi aborts it ('Command aborted'), so every harness is 'hold': mail is delivered the moment the recipient's turn ends. Keep 'hold' unless you verify a harness applies steer after the tool call."
+   },
+diff --git a/slp-room/plugin/server/paths.ts b/slp-room/plugin/server/paths.ts
+index 9756727..c38fa06 100644
+--- a/slp-room/plugin/server/paths.ts
++++ b/slp-room/plugin/server/paths.ts
+@@ -36,6 +36,7 @@ export const CLAUDE_HOME = process.env.CLAUDE_CONFIG_DIR?.trim() || join(USER_HO
+ export const CODEX_HOME = process.env.CODEX_HOME?.trim() || join(USER_HOME, ".codex");
+ export const PI_HOME = process.env.PI_CODING_AGENT_DIR?.trim() || join(USER_HOME, ".pi", "agent");
+ export const OPENCODE_CONFIG_HOME = process.env.OPENCODE_CONFIG_DIR?.trim() || join(USER_HOME, ".config", "opencode");
++export const DSH_HOME = process.env.DSH_TEST_HOME?.trim() || process.env.DSH_HOME?.trim() || join(USER_HOME, ".dsh");
+ 
+ /** The watcher's own files: its key, its spending ledger and its scan log. */
+ export const WATCH_DIR = join(ROOM_HOME, "watch");
+diff --git a/slp-room/plugin/server/policy.ts b/slp-room/plugin/server/policy.ts
+index c5a8d96..a2fb40a 100644
+--- a/slp-room/plugin/server/policy.ts
++++ b/slp-room/plugin/server/policy.ts
+@@ -36,6 +36,15 @@ export interface OpenCodeRuntimePolicy {
+   config: Record<string, unknown>;
+ }
+ 
++export interface DshRuntimePolicy {
++  /** Files of the user's $DSH_HOME the seat shares by symlink: the sign-in and its anonymous id. */
++  shareFiles: string[];
++  /** Directories of the user's $DSH_HOME the seat shares by symlink (model storage state). */
++  shareDirs: string[];
++  /** Whether the seat's ACP session accepts injected MCP servers (Paseo's options.supportsMcpServers). */
++  mcpServers: boolean;
++}
++
+ export type MidTurnDelivery = "steer" | "hold";
+ 
+ export interface MailPolicy {
+@@ -46,7 +55,7 @@ export interface MailPolicy {
+   /** With midTurn "steer": FYI mail still waits for the turn to end. */
+   holdFyiWhileRunning: boolean;
+   /** "steer" hands mail to Paseo's steer while the recipient runs (cancels its tool on Claude and Pi); "hold" waits for the turn to end. */
+-  midTurn: Record<"claude" | "codex" | "pi" | "opencode", MidTurnDelivery>;
++  midTurn: Record<"claude" | "codex" | "pi" | "opencode" | "dsh", MidTurnDelivery>;
+ }
+ 
+ export type RoleName = "hq" | "supervisor" | "lead" | "peer" | "lens";
+@@ -108,6 +117,7 @@ export interface RuntimePolicy {
+   codex: CodexRuntimePolicy;
+   pi: PiRuntimePolicy;
+   opencode: OpenCodeRuntimePolicy;
++  dsh?: DshRuntimePolicy;
+ }
+ 
+ export const POLICY_FILE = join(ROOM_HOME, "policy.json");
+@@ -135,5 +145,6 @@ export function loadPolicy(): RuntimePolicy {
+     codex: need(parsed.codex?.runtime, "codex.runtime"),
+     pi: need(parsed.pi?.runtime, "pi.runtime"),
+     opencode: need(parsed.opencode?.runtime, "opencode.runtime"),
++    dsh: parsed.dsh?.runtime,
+   };
+ }
+diff --git a/slp-room/plugin/server/runtimes.ts b/slp-room/plugin/server/runtimes.ts
+index 03da32c..0c10b21 100644
+--- a/slp-room/plugin/server/runtimes.ts
++++ b/slp-room/plugin/server/runtimes.ts
+@@ -1,7 +1,7 @@
+ import { createHash } from "node:crypto";
+ import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+ import { join } from "node:path";
+-import { CLAUDE_HOME, CODEX_HOME, OPENCODE_CONFIG_HOME, PI_HOME, ROLE_SKILLS_DIR, ROOM_DIR, RUNTIMES_DIR } from "./paths";
++import { CLAUDE_HOME, CODEX_HOME, DSH_HOME, OPENCODE_CONFIG_HOME, PI_HOME, ROLE_SKILLS_DIR, ROOM_DIR, RUNTIMES_DIR } from "./paths";
+ import { loadPolicy, type RuntimePolicy } from "./policy";
+ import type { Harness, Role, Seat } from "./seats";
+ import { formatToml, parseToml, type TomlTable } from "./toml";
+@@ -130,6 +130,20 @@ function buildOpenCode(runtime: string, policy: RuntimePolicy["opencode"]): void
+   for (const name of policy.shareEntries) share(runtime, OPENCODE_CONFIG_HOME, name);
+ }
+ 
++/* ---------- DeepSeek Harness: DSH_HOME ---------- */
++
++function buildDsh(runtime: string, policy: RuntimePolicy["dsh"]): void {
++  // A dsh seat runs `dsh --profile acp` with DSH_HOME pointing here. It shares
++  // the sign-in and the model layer state by symlink, keeps its sessions and
++  // storages to itself, and starts with NO cordis patch: the user's own plugin
++  // layers (and their MCP servers) do not load in a seat. The room's tools
++  // arrive as MCP servers the room and Paseo inject into the ACP session.
++  if (!policy) throw new Error(`slp-seat: policy.json is missing "dsh.runtime" (add the godkit dsh block or run install.sh)`);
++  for (const name of policy.shareFiles) share(runtime, DSH_HOME, name);
++  for (const name of policy.shareDirs) share(runtime, DSH_HOME, name);
++  mkdirSync(join(runtime, "sessions"), { recursive: true });
++}
++
+ /** Links a role's skills where its harness reads them: the seat's runtime, or claudeRoleDir(role) for Claude. */
+ function installRoleSkills(runtime: string, seat: Pick<Seat, "harness" | "role">): void {
+   const role = seat.role;
+@@ -163,6 +177,8 @@ function build(seat: Pick<Seat, "harness" | "role">, dir: string, policy: Runtim
+       return buildPi(dir, policy.pi);
+     case "opencode":
+       return buildOpenCode(dir, policy.opencode);
++    case "dsh":
++      return buildDsh(dir, policy.dsh);
+   }
+ }
+ 
+@@ -212,6 +228,8 @@ export function envFor(harness: Harness, dir: string | null): Record<string, str
+       return { PI_CODING_AGENT_DIR: dir };
+     case "opencode":
+       return { OPENCODE_CONFIG_DIR: dir, OPENCODE_CONFIG: join(dir, "opencode.json") };
++    case "dsh":
++      return { DSH_HOME: dir };
+   }
+ }
+ 
+@@ -223,5 +241,6 @@ export function describeIsolation(policy: RuntimePolicy = loadPolicy()): string
+     `codex: strips [${policy.codex.stripTables.join(",")}], features off ${policy.codex.featuresOff.length}`,
+     `pi: shares ${policy.pi.shareFiles.join(",")}; packages kept only if matching [${policy.pi.keepPackages.join(",")}]`,
+     `opencode: task denied, built-in subagents disabled`,
++    `dsh: ${policy.dsh ? `shares ${[...policy.dsh.shareFiles, ...policy.dsh.shareDirs].join(",") || "nothing"}; no user cordis patch; sessions its own` : "policy.json carries no dsh.runtime; dsh seats are refused"}`,
+   ].join(" | ");
+ }
+diff --git a/slp-room/plugin/server/seats.ts b/slp-room/plugin/server/seats.ts
+index 203c874..6ddc185 100644
+--- a/slp-room/plugin/server/seats.ts
++++ b/slp-room/plugin/server/seats.ts
+@@ -5,7 +5,7 @@ import { ROOM_DIR, ROOM_HOME, SEATS_FILE } from "./paths";
+ import { loadModels, promptVars, render, type Models } from "./models";
+ import type { RoomParams } from "./policy";
+ 
+-export const HARNESSES = ["claude", "codex", "pi", "opencode"] as const;
++export const HARNESSES = ["claude", "codex", "pi", "opencode", "dsh"] as const;
+ export const ROLES = ["hq", "supervisor", "lead", "peer", "lens"] as const;
+ 
+ export type Harness = (typeof HARNESSES)[number];
+diff --git a/slp-room/plugin/test/runtime-dsh.test.ts b/slp-room/plugin/test/runtime-dsh.test.ts
+new file mode 100644
+index 0000000..c10837e
+--- /dev/null
++++ b/slp-room/plugin/test/runtime-dsh.test.ts
+@@ -0,0 +1,48 @@
++import { USER_DSH } from "./support/room";
++import assert from "node:assert/strict";
++import { existsSync, lstatSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
++import { join } from "node:path";
++import { test } from "node:test";
++import type { DshRuntimePolicy, RuntimePolicy } from "../server/policy";
++import { envFor, ensureRuntime, runtimeDir } from "../server/runtimes";
++
++const seat = { harness: "dsh", role: "peer" } as const;
++const runtime = runtimeDir(seat);
++
++function policyWith(over: Partial<DshRuntimePolicy> = {}): RuntimePolicy {
++  const dsh: DshRuntimePolicy = {
++    shareFiles: [".credentials.yaml", ".anonymous-user-id"],
++    shareDirs: ["llm-deepseek"],
++    mcpServers: true,
++    ...over,
++  };
++  return { dsh } as RuntimePolicy;
++}
++
++/** Rebuilds from scratch, mirroring the way runtimes.test.ts makes each case run. */
++function build(policy: RuntimePolicy = policyWith()): void {
++  rmSync(runtime, { recursive: true, force: true });
++  ensureRuntime(seat, policy);
++}
++
++test("a dsh seat shares its credentials and keeps no user cordis patch", () => {
++  writeFileSync(join(USER_DSH, ".credentials.yaml"), "key: yes\n");
++  writeFileSync(join(USER_DSH, ".anonymous-user-id"), "uid\n");
++  writeFileSync(join(USER_DSH, "cordis.patch.yml"), "# the user's own plugins — a seat must not link this\n");
++  build();
++  assert.ok(existsSync(join(runtime, ".credentials.yaml")), "credentials are shared");
++  assert.ok(lstatSync(join(runtime, ".credentials.yaml")).isSymbolicLink(), "credentials are a symlink, not a copy");
++  assert.ok(existsSync(join(runtime, "sessions")), "the seat has its own sessions dir");
++  assert.ok(!existsSync(join(runtime, "cordis.patch.yml")), "no user plugin layer loads in a seat");
++});
++
++test("a dsh seat shares the model layer state and envFor points DSH_HOME at the runtime", () => {
++  mkdirSync(join(USER_DSH, "llm-deepseek"));
++  build();
++  assert.ok(existsSync(join(runtime, "llm-deepseek")), "model storage shared");
++  assert.deepEqual(envFor("dsh", runtime), { DSH_HOME: runtime });
++});
++
++test("a dsh seat without a dsh.runtime block is refused with the fix named", () => {
++  assert.throws(() => ensureRuntime(seat, {} as RuntimePolicy), /missing "dsh.runtime"|"dsh.runtime"/);
++});
+\ No newline at end of file
+diff --git a/slp-room/plugin/test/support/room.ts b/slp-room/plugin/test/support/room.ts
+index 32bd329..490688e 100644
+--- a/slp-room/plugin/test/support/room.ts
++++ b/slp-room/plugin/test/support/room.ts
+@@ -11,9 +11,10 @@ process.on("exit", () => rmSync(base, { recursive: true, force: true }));
+ 
+ export const ROOM_HOME = join(base, "room-home");
+ export const USER_CODEX = join(base, "codex");
++export const USER_DSH = join(base, "dsh");
+ export const PROJECT = join(base, "project");
+ 
+-for (const dir of [ROOM_HOME, USER_CODEX, PROJECT]) mkdirSync(dir);
++for (const dir of [ROOM_HOME, USER_CODEX, USER_DSH, PROJECT]) mkdirSync(dir);
+ // a paseo CLI that always fails: the plugin shells out for projects, labels and schedules
+ const cli = join(base, "paseo");
+ writeFileSync(cli, "#!/bin/sh\nexit 1\n");
+@@ -27,6 +28,7 @@ Object.assign(process.env, {
+   CLAUDE_CONFIG_DIR: join(base, "claude"),
+   PI_CODING_AGENT_DIR: join(base, "pi"),
+   OPENCODE_CONFIG_DIR: join(base, "opencode"),
++  DSH_TEST_HOME: USER_DSH,
+ });
+ 
+ const REPO_ROOM = join(__dirname, "..", "..", "..");
+@@ -45,7 +47,7 @@ export const MAIL_POLICY = {
+   port: 0,
+   maxBodyChars: 4000,
+   holdFyiWhileRunning: true,
+-  midTurn: { claude: "hold", codex: "hold", pi: "hold", opencode: "hold" },
++  midTurn: { claude: "hold", codex: "hold", pi: "hold", opencode: "hold", dsh: "hold" },
+ } as const;
+ 
+ export interface Deferred {
+diff --git a/slp-room/room/harness/dsh-harness.md b/slp-room/room/harness/dsh-harness.md
+new file mode 100644
+index 0000000..9bf4c35
+--- /dev/null
++++ b/slp-room/room/harness/dsh-harness.md
+@@ -0,0 +1,5 @@
++# Harness sheet: DeepSeek Harness (how this runtime exposes the room)
++- Tools: the seat runs `dsh --profile acp` with `DSH_HOME` at its own runtime. Paseo talks to it over ACP and injects the room's MCP servers (`slp` and the Paseo agent tools; your role only allows some) into the session. Use the tool names they present. Do not conclude they are missing.
++- Skills: your role's `slp-*` skills are in this runtime's skills directory; read one when a procedure names it.
++- Off in this runtime: your own `cordis.patch.yml` is absent, so no user plugin layer loads; sessions and storages under this `DSH_HOME` are the seat's own. A denial is the room's rule, not an error to work around.
++- Modes: dsh has no Paseo session mode; a seat is created with none. Signing in is the `dsh` CLI's own sign-in, shared with every dsh seat.
+\ No newline at end of file
+diff --git a/slp-room/tools/choices.py b/slp-room/tools/choices.py
+index f28fbed..7e87a83 100755
+--- a/slp-room/tools/choices.py
++++ b/slp-room/tools/choices.py
+@@ -16,10 +16,15 @@ MODELS = HERE / "room" / "models.json"
+ ROOM_HOME = pathlib.Path(os.environ.get("SLP_ROOM_HOME") or pathlib.Path.home() / ".config" / "slp-room")
+ SETUP = ROOM_HOME / "setup.json"
+ 
+-HARNESSES = ["claude", "codex", "pi", "opencode"]
++HARNESSES = ["claude", "codex", "pi", "opencode", "dsh"]
+ ROLES = ["hq", "supervisor", "lead", "peer", "lens"]
+ WATCHER_MODES = ["off", "shadow", "on"]
+ 
++# The provider id the daemon's model catalog answers for: "dsh" seats are provider entries
++# that extend "acp" and run dsh through the deepseek-harness plugin, so their models come
++# from that provider's runtime discovery.
++CATALOG_PROVIDER = {**{h: h for h in HARNESSES}, "dsh": "deepseek-harness"}
++
+ 
+ def fail(message: str) -> SystemExit:
+     print(message, file=sys.stderr)
+@@ -29,7 +34,7 @@ def fail(message: str) -> SystemExit:
+ def catalog(harness: str) -> dict[str, dict] | None:
+     """The harness's live model catalog from the daemon, or None when unavailable."""
+     try:
+-        out = subprocess.run(["paseo", "provider", "models", harness, "--json"], capture_output=True, text=True, timeout=20)
++        out = subprocess.run(["paseo", "provider", "models", CATALOG_PROVIDER.get(harness, harness), "--json"], capture_output=True, text=True, timeout=20)
+     except (OSError, subprocess.TimeoutExpired):
+         return None
+     if out.returncode != 0:
+diff --git a/slp-room/tools/gen-snippet.py b/slp-room/tools/gen-snippet.py
+index fb75a7d..85904db 100644
+--- a/slp-room/tools/gen-snippet.py
++++ b/slp-room/tools/gen-snippet.py
+@@ -20,7 +20,7 @@ MODELS = HERE / "room" / "models.json"
+ OUT = HERE / "paseo" / "config.snippet.json"
+ SEATS_OUT = ROOM_HOME / "seats.json"   # for the plugin; derived from seats.yml and setup.json, never committed
+ 
+-LABEL = {"claude": "Claude", "codex": "Codex", "pi": "Pi", "opencode": "OpenCode"}
++LABEL = {"claude": "Claude", "codex": "Codex", "pi": "Pi", "opencode": "OpenCode", "dsh": "DeepSeek"}
+ ROLE_LABEL = {"hq": "HQ Supervisor", "supervisor": "Supervisor", "lead": "Lead", "peer": "Peer", "lens": "Lens"}
+ # How each harness is kept apart from the user's own setup (shown in the provider description).
+ ISOLATION = {
+@@ -28,6 +28,7 @@ ISOLATION = {
+     "codex": "on an isolated Codex runtime (CODEX_HOME per role)",
+     "pi": "on an isolated Pi runtime (PI_CODING_AGENT_DIR per role)",
+     "opencode": "on an isolated OpenCode runtime (OPENCODE_CONFIG_DIR per role)",
++    "dsh": "on an isolated DeepSeek Harness runtime (DSH_HOME per role, over the deepseek-harness ACP profile)",
+ }
+ 
+ 
+@@ -124,6 +125,18 @@ def main() -> int:
+             "description": f"{ROLE_LABEL[role]} seat {ISOLATION[harness]}; Paseo tools: {', '.join(allow[role]) or 'none'}",
+             "paseoTools": {"enabled": True, "disabledTools": disabled},
+         }
++        if harness == "dsh":
++            # dsh is not a built-in provider: a dsh seat extends the generic ACP provider and
++            # runs the official ACP profile (dsh --profile acp; overridable with DSH_PASEO_PROFILE).
++            # The seat's isolated DSH_HOME is pointed at, and its runtime has been built by the
++            # plugin before the first seat starts; policy.dsh.runtime.mcpServers turns the MCP
++            # injection off for an ACP agent that refuses non-empty mcpServers.
++            dsh_policy = (policy.get("dsh") or {}).get("runtime") or {}
++            entry["extends"] = "acp"
++            entry["command"] = ["dsh", "--profile", "acp"]
++            entry["env"] = {"DSH_HOME": (ROOM_HOME / "runtimes" / "dsh" / role).as_posix()}
++            if dsh_policy.get("mcpServers") is False:
++                entry["options"] = {"supportsMcpServers": False}
+         if harness == "claude":
+             denied_skills = [f"Skill(skill:{name})" for name in policy["claude"].get("deniedSkills", [])]
+             entry["disallowedTools"] = policy["claude"]["disallowedTools"][role] + denied_skills

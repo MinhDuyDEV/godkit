@@ -1,0 +1,5 @@
+# kit backups the installer keeps
+*.godkit.bak.*
+
+# OS noise
+.DS_Store

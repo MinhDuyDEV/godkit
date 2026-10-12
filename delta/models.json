@@ -1,0 +1,37 @@
+{
+  "$comment": "GODKIT delta: ONE setup for a Claude + Pi machine. install.sh replaces _CLAUDE_MODEL_ (the model id your `claude` exposes) and _PI_MODEL_ (the model id your `pi` exposes) at install time; edit the rendered room/models.json by hand afterwards. Cross-family review rides the `cross-family` peer tier and the lens pair: they only mean anything if _PI_MODEL_ is NOT an Anthropic model. With dsh in the picture (install.sh --dsh-room), the variants seats.dsh.yml / models.dsh.json replace this one and the cross-family tier moves to a real DeepSeek model. modes: the Paseo session mode per harness; null = the harness has none and passing any mode is refused.",
+  "seats": {
+    "hq": { "provider": "claude-hq/_CLAUDE_MODEL_", "thinking": "high" },
+    "supervisor": { "provider": "claude-supervisor/_CLAUDE_MODEL_", "thinking": "high", "alternatives": [] },
+    "lead": { "provider": "claude-lead/_CLAUDE_MODEL_", "thinking": "high", "alternatives": [] }
+  },
+  "peer": {
+    "reviewThinking": "high",
+    "tiers": {
+      "default": {
+        "providers": ["claude-peer/_CLAUDE_MODEL_"],
+        "thinking": "high",
+        "use": "implementation, debugging, multi-file changes with invariants, research with judgement",
+        "never": "the independent review of a candidate a Claude Peer wrote (that is what the cross-family tier is for)"
+      },
+      "cross-family": {
+        "providers": ["pi-peer/_PI_MODEL_"],
+        "thinking": "high",
+        "use": "the reviewer of a Claude-written candidate, a tie-break, a retry after a Claude Peer failed",
+        "never": "a rung on the ladder; a default reviewer when the author was not a Claude Peer"
+      }
+    }
+  },
+  "lens": {
+    "$comment": "Lenses are not Peers: strong models that think independently for the Lead, from a neutral brief, without the Lead's judgement or context. The GODKIT two-axis review is the pair: axis `standards` and axis `spec`, one on each family.",
+    "oracle": "claude-lens/_CLAUDE_MODEL_",
+    "hard": "pi-lens/_PI_MODEL_",
+    "pair": ["pi-lens/_PI_MODEL_", "claude-lens/_CLAUDE_MODEL_"],
+    "pool": ["claude-lens/_CLAUDE_MODEL_"],
+    "thinking": "high"
+  },
+  "modes": {
+    "claude": "bypassPermissions",
+    "pi": null
+  }
+}

@@ -1,0 +1,18 @@
+# GODKIT seats: every install gets exactly these <harness>-<role> providers.
+# Room harnesses: claude + pi. The `--dsh-room` flag swaps this file for
+# seats.dsh.yml (claude + pi + dsh). Any harness can still hold any role: to add
+# one, edit this file and the model table together, then run ../install.sh again.
+# Every provider named in room/models.json must be enabled here (the installer
+# checks).
+seats:
+  hq: [claude]
+  supervisor: [claude]
+  lead: [claude]
+  peer: [claude, pi]
+  lens: [claude, pi]
+
+# true: each provider lists only the models room/models.json assigns to it
+# (read from the harness's live catalog at install time). false: the harness's
+# full model list. GODKIT keeps true, so an agent on a model the table does not
+# list is refused — that is the godkit guarantee, keep it.
+restrict_models: true

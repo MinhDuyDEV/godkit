@@ -1,0 +1,20 @@
+# GODKIT seats: every install gets exactly these <harness>-<role> providers.
+# GODKIT's room runs on Claude + Pi, and — with `install.sh --dsh-room` (which
+# patches the seatwork plugin) — DeepSeek Harness. Any harness can still hold any
+# role: to add one, edit this file and the model table together, then run
+# ../install.sh again. Every provider named in room/models.json must be enabled
+# here (seatwork's installer checks).
+seats:
+  hq: [claude]
+  supervisor: [claude]
+  lead: [claude]
+  peer: [claude, pi, dsh]
+  lens: [claude, pi, dsh]
+
+# true: each provider lists only the models room/models.json assigns to it
+# (read from the harness's live catalog at install time). false: the harness's
+# full model list. GODKIT keeps true, so an agent on a model the table does not
+# list is refused — that is the godkit guarantee, keep it. The dsh catalog comes
+# from the deepseek-harness provider's runtime discovery; when the daemon cannot
+# answer at install time the seat keeps the full list and a warning prints.
+restrict_models: true
